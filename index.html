@@ -16,360 +16,67 @@
     };
 
     let state = {
-      isAdmin: false,
-      showLogin: false,
-      showBackend: false,
-      showAddModal: false,
-      showSettings: false,
-      editingQual: null,
+      isAdmin: false, showLogin: false, showBackend: false, showAddModal: false, 
+      showSettings: false, showProviderModal: false, editingQual: null,
       password: storage.get('admin-password') || 'admin123',
       qualifications: storage.get('qualifications') || [],
-      search: '',
-      filters: { provider: 'all', qualification: 'all', level: 'all', sector: 'all', verificationStatus: 'all' },
+      customProviders: storage.get('custom-providers') || [],
+      logoUrl: storage.get('logo-url') || '',
+      orgName: storage.get('org-name') || 'GNAB',
+      orgTagline: storage.get('org-tagline') || 'Grenada National Accreditation Board',
+      search: '', filters: { provider: 'all', qualification: 'all', level: 'all', sector: 'all', verificationStatus: 'all' },
       formData: {}
     };
 
     const data = {
-      providers: ['T.A. Marryshow Community College', 'Grenada National College', "St. George's University", 'OECS Institute', 'New Life Organisation'],
+      defaultProviders: ['T.A. Marryshow Community College', 'Grenada National College', "St. George's University", 'OECS Institute', 'New Life Organisation'],
       types: ['Certificate', 'Diploma', 'Degree'],
       levels: ['Level 1', 'Level 2', 'Level 3', 'Level 4', 'Level 5', 'Level 6', 'Level 7', 'Level 8'],
-      sectors: ['Hospitality', 'Education', 'Healthcare', 'Agriculture', 'Technology', 'Business', 'Arts', 'Engineering'],
-      countries: ['Grenada', 'OECS', 'Other']
+      sectors: ['Hospitality', 'Education', 'Healthcare', 'Agriculture', 'Technology', 'Business', 'Arts', 'Engineering']
     };
 
-    function notify(msg) {
-      const d = document.createElement('div');
-      d.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
-      d.textContent = msg;
-      document.body.appendChild(d);
-      setTimeout(() => d.remove(), 3000);
-    }
-
-    function badge(status) {
-      const b = {
-        verified: 'bg-green-100 text-green-800 border-green-300',
-        pending: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-        rejected: 'bg-red-100 text-red-800 border-red-300',
-        unverified: 'bg-gray-100 text-gray-800 border-gray-300'
-      };
-      const i = { verified: '✓', pending: '⏳', rejected: '✗', unverified: '⚠' };
-      const l = { verified: 'Verified', pending: 'Pending', rejected: 'Rejected', unverified: 'Unverified' };
-      return { color: b[status] || b.unverified, icon: i[status] || i.unverified, label: l[status] || l.unverified };
-    }
-
-    function filter() {
-      return state.qualifications.filter(q => {
-        const kw = !state.search || 
-          q.title.toLowerCase().includes(state.search.toLowerCase()) ||
-          q.provider.toLowerCase().includes(state.search.toLowerCase());
-        return kw &&
-          (state.filters.provider === 'all' || q.provider === state.filters.provider) &&
-          (state.filters.qualification === 'all' || q.type === state.filters.qualification) &&
-          (state.filters.level === 'all' || q.level === state.filters.level) &&
-          (state.filters.sector === 'all' || q.sector === state.filters.sector) &&
-          (state.filters.verificationStatus === 'all' || (q.verificationStatus || 'unverified') === state.filters.verificationStatus);
-      });
-    }
-
-    function loadDemo() {
-      state.qualifications = [
-        { id: 1, title: 'Advanced Diploma in Hospitality Management', provider: 'T.A. Marryshow Community College', type: 'Diploma', level: 'Level 5', sector: 'Hospitality', country: 'Grenada', description: 'Comprehensive program covering hotel operations and tourism management.', verificationStatus: 'verified', verificationDate: '2024-12-15' },
-        { id: 2, title: 'Certificate in Early Childhood Education', provider: 'Grenada National College', type: 'Certificate', level: 'Level 3', sector: 'Education', country: 'Grenada', description: 'Foundation qualification for early childhood educators.', verificationStatus: 'pending' },
-        { id: 3, title: 'Bachelor of Science in Nursing', provider: "St. George's University", type: 'Degree', level: 'Level 6', sector: 'Healthcare', country: 'Grenada', description: 'Professional nursing degree program.', verificationStatus: 'verified', verificationDate: '2025-01-10' },
-        { id: 4, title: 'Diploma in Information Technology', provider: 'T.A. Marryshow Community College', type: 'Diploma', level: 'Level 4', sector: 'Technology', country: 'Grenada', description: 'Technical program covering programming and networking.', verificationStatus: 'rejected', verificationNotes: 'Does not meet standards.' }
-      ];
-      storage.set('qualifications', state.qualifications);
-      notify('Demo data loaded!');
-      render();
-    }
-
-    function login() {
-      const pw = document.getElementById('pwInput').value;
-      if (pw === state.password) {
-        state.isAdmin = true;
-        state.showLogin = false;
-        notify('Logged in!');
-        render();
-      } else {
-        notify('Invalid password');
-      }
-    }
-
-    function save() {
-      if (!state.formData.title || !state.formData.provider) {
-        notify('Fill required fields');
-        return;
-      }
-      if (state.editingQual) {
-        state.qualifications = state.qualifications.map(q => q.id === state.editingQual.id ? { ...q, ...state.formData } : q);
-      } else {
-        state.qualifications.push({ id: Date.now(), ...state.formData });
-      }
-      storage.set('qualifications', state.qualifications);
-      state.showAddModal = false;
-      state.editingQual = null;
-      notify('Saved!');
-      render();
-    }
-
-    function del(id) {
-      if (confirm('Delete?')) {
-        state.qualifications = state.qualifications.filter(q => q.id !== id);
-        storage.set('qualifications', state.qualifications);
-        notify('Deleted!');
-        render();
-      }
-    }
+    const getAllProviders = () => [...data.defaultProviders, ...state.customProviders];
+    const notify = msg => { const d = document.createElement('div'); d.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50'; d.textContent = msg; document.body.appendChild(d); setTimeout(() => d.remove(), 3000); };
+    const badge = s => ({ verified: {c:'bg-green-100 text-green-800 border-green-300',i:'✓',l:'Verified'}, pending: {c:'bg-yellow-100 text-yellow-800 border-yellow-300',i:'⏳',l:'Pending'}, rejected: {c:'bg-red-100 text-red-800 border-red-300',i:'✗',l:'Rejected'}, unverified: {c:'bg-gray-100 text-gray-800 border-gray-300',i:'⚠',l:'Unverified'}}[s] || {c:'bg-gray-100 text-gray-800 border-gray-300',i:'⚠',l:'Unverified'});
+    
+    const filter = () => state.qualifications.filter(q => (!state.search || q.title.toLowerCase().includes(state.search.toLowerCase()) || q.provider.toLowerCase().includes(state.search.toLowerCase())) && (state.filters.provider === 'all' || q.provider === state.filters.provider) && (state.filters.qualification === 'all' || q.type === state.filters.qualification) && (state.filters.level === 'all' || q.level === state.filters.level) && (state.filters.sector === 'all' || q.sector === state.filters.sector) && (state.filters.verificationStatus === 'all' || (q.verificationStatus || 'unverified') === state.filters.verificationStatus));
+    
+    const loadDemo = () => { state.qualifications = [{id:1,title:'Advanced Diploma in Hospitality Management',provider:'T.A. Marryshow Community College',type:'Diploma',level:'Level 5',sector:'Hospitality',country:'Grenada',description:'Comprehensive program covering hotel operations.',verificationStatus:'verified',verificationDate:'2024-12-15'},{id:2,title:'Certificate in Early Childhood Education',provider:'Grenada National College',type:'Certificate',level:'Level 3',sector:'Education',country:'Grenada',description:'Foundation qualification for educators.',verificationStatus:'pending'},{id:3,title:'Bachelor of Science in Nursing',provider:"St. George's University",type:'Degree',level:'Level 6',sector:'Healthcare',country:'Grenada',description:'Professional nursing program.',verificationStatus:'verified',verificationDate:'2025-01-10'}]; storage.set('qualifications',state.qualifications); notify('Demo loaded!'); render(); };
+    
+    const login = () => { const pw = document.getElementById('pwInput').value; if(pw===state.password){state.isAdmin=true;state.showLogin=false;notify('Logged in!');render();}else{notify('Invalid password');} };
+    
+    const save = () => { if(!state.formData.title||!state.formData.provider){notify('Fill required fields');return;} if(state.editingQual){state.qualifications=state.qualifications.map(q=>q.id===state.editingQual.id?{...q,...state.formData}:q);}else{state.qualifications.push({id:Date.now(),...state.formData});} storage.set('qualifications',state.qualifications); state.showAddModal=false; state.editingQual=null; notify('Saved!'); render(); };
+    
+    const del = id => { if(confirm('Delete?')){state.qualifications=state.qualifications.filter(q=>q.id!==id); storage.set('qualifications',state.qualifications); notify('Deleted!'); render();} };
+    
+    const addProvider = () => { const name=document.getElementById('newProviderInput').value.trim(); if(!name){notify('Enter name');return;} if(getAllProviders().includes(name)){notify('Already exists');return;} state.customProviders.push(name); storage.set('custom-providers',state.customProviders); notify('Provider added!'); document.getElementById('newProviderInput').value=''; render(); };
+    
+    const deleteProvider = name => { if(confirm(`Delete "${name}"?`)){state.customProviders=state.customProviders.filter(p=>p!==name); storage.set('custom-providers',state.customProviders); notify('Deleted!'); render();} };
+    
+    const handleLogoUpload = e => { const file=e.target.files[0]; if(!file)return; if(!file.type.startsWith('image/')){notify('Image only');return;} if(file.size>500*1024){notify('Max 500KB');return;} const reader=new FileReader(); reader.onload=ev=>{ const img=new Image(); img.onload=()=>{ const canvas=document.createElement('canvas'); const max=200; let w=img.width,h=img.height; if(w>h){if(w>max){h*=max/w;w=max;}}else{if(h>max){w*=max/h;h=max;}} canvas.width=w; canvas.height=h; canvas.getContext('2d').drawImage(img,0,0,w,h); const c=canvas.toDataURL('image/jpeg',0.7); state.logoUrl=c; storage.set('logo-url',c); notify('Logo updated!'); render(); }; img.src=ev.target.result; }; reader.readAsDataURL(file); };
+    
+    const saveBranding = () => { const url=document.getElementById('logoUrlInput').value.trim(); const name=document.getElementById('orgNameInput').value.trim(); const tagline=document.getElementById('orgTaglineInput').value.trim(); if(url){state.logoUrl=url;storage.set('logo-url',url);} if(name){state.orgName=name;storage.set('org-name',name);} if(tagline){state.orgTagline=tagline;storage.set('org-tagline',tagline);} notify('Branding updated!'); render(); };
+    
+    const removeLogo = () => { state.logoUrl=''; storage.set('logo-url',''); notify('Logo removed!'); render(); };
 
     function render() {
       const filtered = filter();
       const app = document.getElementById('app');
+      const allProviders = getAllProviders();
       
       if (state.isAdmin && state.showBackend) {
-        app.innerHTML = `
-          <div class="min-h-screen bg-gray-100 p-6">
-            <div class="max-w-7xl mx-auto">
-              <div class="flex justify-between mb-6">
-                <h1 class="text-3xl font-bold">Admin Panel</h1>
-                <div class="flex gap-3">
-                  <button onclick="state.showSettings = true; render()" class="px-4 py-2 bg-gray-600 text-white rounded">⚙️ Settings</button>
-                  <button onclick="state.showBackend = false; render()" class="px-4 py-2 bg-teal-600 text-white rounded">Public View</button>
-                  <button onclick="state.isAdmin = false; state.showBackend = false; render()" class="px-4 py-2 bg-red-500 text-white rounded">Logout</button>
-                </div>
-              </div>
-              
-              <div class="grid md:grid-cols-3 gap-6 mb-6">
-                <div class="bg-white rounded-lg shadow p-6">
-                  <p class="text-sm text-gray-600">Total</p>
-                  <p class="text-3xl font-bold text-teal-600">${state.qualifications.length}</p>
-                </div>
-                <div class="bg-white rounded-lg shadow p-6">
-                  <p class="text-sm text-gray-600">Verified</p>
-                  <p class="text-3xl font-bold text-green-600">${state.qualifications.filter(q => q.verificationStatus === 'verified').length}</p>
-                </div>
-                <div class="bg-white rounded-lg shadow p-6">
-                  <p class="text-sm text-gray-600">Pending</p>
-                  <p class="text-3xl font-bold text-yellow-600">${state.qualifications.filter(q => q.verificationStatus === 'pending').length}</p>
-                </div>
-              </div>
-              
-              <div class="bg-white rounded-lg shadow p-6 mb-6">
-                <div class="flex gap-3">
-                  <button onclick="loadDemo()" class="px-4 py-2 bg-purple-600 text-white rounded">Load Demo</button>
-                  <button onclick="state.formData = {}; state.editingQual = null; state.showAddModal = true; render()" class="px-4 py-2 bg-teal-600 text-white rounded">➕ Add</button>
-                </div>
-              </div>
-              
-              <div class="bg-white rounded-lg shadow overflow-x-auto">
-                <table class="w-full">
-                  <thead class="bg-gray-50">
-                    <tr>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Provider</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y">
-                    ${state.qualifications.map(q => {
-                      const b = badge(q.verificationStatus || 'unverified');
-                      return `
-                        <tr>
-                          <td class="px-6 py-4 text-sm">${q.title}</td>
-                          <td class="px-6 py-4 text-sm">${q.provider}</td>
-                          <td class="px-6 py-4"><span class="px-2 py-1 text-xs rounded border ${b.color}">${b.icon} ${b.label}</span></td>
-                          <td class="px-6 py-4">
-                            <button onclick='state.editingQual = ${JSON.stringify(q)}; state.formData = ${JSON.stringify(q)}; state.showAddModal = true; render()' class="text-blue-600 mr-2">✏️</button>
-                            <button onclick="del(${q.id})" class="text-red-600">🗑️</button>
-                          </td>
-                        </tr>
-                      `;
-                    }).join('')}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        `;
+        app.innerHTML = `<div class="min-h-screen bg-gray-100 p-6"><div class="max-w-7xl mx-auto"><div class="flex justify-between mb-6"><h1 class="text-3xl font-bold">Admin Panel</h1><div class="flex gap-3"><button onclick="state.showSettings=true;render()" class="px-4 py-2 bg-gray-600 text-white rounded">⚙️ Settings</button><button onclick="state.showBackend=false;render()" class="px-4 py-2 bg-teal-600 text-white rounded">Public</button><button onclick="state.isAdmin=false;state.showBackend=false;render()" class="px-4 py-2 bg-red-500 text-white rounded">Logout</button></div></div><div class="grid md:grid-cols-3 gap-6 mb-6"><div class="bg-white rounded-lg shadow p-6"><p class="text-sm text-gray-600">Total</p><p class="text-3xl font-bold text-teal-600">${state.qualifications.length}</p></div><div class="bg-white rounded-lg shadow p-6"><p class="text-sm text-gray-600">Verified</p><p class="text-3xl font-bold text-green-600">${state.qualifications.filter(q=>q.verificationStatus==='verified').length}</p></div><div class="bg-white rounded-lg shadow p-6"><p class="text-sm text-gray-600">Pending</p><p class="text-3xl font-bold text-yellow-600">${state.qualifications.filter(q=>q.verificationStatus==='pending').length}</p></div></div><div class="bg-white rounded-lg shadow p-6 mb-6"><div class="flex gap-3"><button onclick="loadDemo()" class="px-4 py-2 bg-purple-600 text-white rounded">Load Demo</button><button onclick="state.formData={};state.editingQual=null;state.showAddModal=true;render()" class="px-4 py-2 bg-teal-600 text-white rounded">➕ Add</button><button onclick="state.showProviderModal=true;render()" class="px-4 py-2 bg-indigo-600 text-white rounded">📋 Providers</button></div></div><div class="bg-white rounded-lg shadow overflow-x-auto"><table class="w-full"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Provider</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th></tr></thead><tbody class="divide-y">${state.qualifications.map(q=>{const b=badge(q.verificationStatus||'unverified');return`<tr><td class="px-6 py-4 text-sm">${q.title}</td><td class="px-6 py-4 text-sm">${q.provider}</td><td class="px-6 py-4"><span class="px-2 py-1 text-xs rounded border ${b.c}">${b.i} ${b.l}</span></td><td class="px-6 py-4"><button onclick='state.editingQual=${JSON.stringify(q)};state.formData=${JSON.stringify(q)};state.showAddModal=true;render()' class="text-blue-600 mr-2">✏️</button><button onclick="del(${q.id})" class="text-red-600">🗑️</button></td></tr>`;}).join('')}</tbody></table></div></div></div>`;
       } else {
-        app.innerHTML = `
-          <div class="bg-yellow-50 border-b-2 border-yellow-400 py-3 px-4">
-            <div class="max-w-7xl mx-auto">
-              <p class="text-sm font-semibold text-yellow-900">⚠️ DISCLAIMER: Verify all qualifications with GNAB</p>
-            </div>
-          </div>
-          
-          <header class="bg-white shadow-sm">
-            <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-              <div class="flex items-center gap-3">
-                <div class="w-12 h-12 bg-blue-600 rounded flex items-center justify-center text-2xl">📚</div>
-                <div>
-                  <div class="text-xl font-bold">GNAB</div>
-                  <div class="text-xs text-gray-600">Grenada National Accreditation Board</div>
-                </div>
-              </div>
-              <div>
-                ${state.isAdmin ? `
-                  <button onclick="state.showBackend = true; render()" class="px-4 py-2 bg-gray-600 text-white rounded mr-2">Admin</button>
-                  <button onclick="state.isAdmin = false; render()" class="px-4 py-2 bg-red-500 text-white rounded">Logout</button>
-                ` : `
-                  <button onclick="state.showLogin = true; render()" class="px-4 py-2 bg-orange-500 text-white rounded">Admin Login</button>
-                `}
-              </div>
-            </div>
-          </header>
-          
-          <div class="bg-gradient-to-r from-teal-700 to-teal-500 text-white py-16 px-4">
-            <div class="max-w-7xl mx-auto">
-              <h1 class="text-5xl font-bold mb-2">GNQCF</h1>
-              <p class="text-xl">Grenada National Qualifications Framework Register</p>
-            </div>
-          </div>
-          
-          <div class="max-w-7xl mx-auto px-4 py-8">
-            <div class="bg-white rounded-lg shadow p-6 mb-6">
-              ${state.qualifications.length === 0 ? `
-                <div class="bg-blue-50 border border-blue-200 rounded p-4 mb-4">
-                  <h3 class="font-bold text-blue-900 mb-2">👋 Welcome!</h3>
-                  <p class="text-blue-800 mb-3">No data found.</p>
-                  ${state.isAdmin ? `<button onclick="loadDemo()" class="px-6 py-2 bg-blue-600 text-white rounded">Load Demo Data</button>` : ''}
-                </div>
-              ` : ''}
-              
-              <div class="mb-4">
-                <input type="text" placeholder="Search..." class="w-full px-4 py-2 border rounded" onkeyup="state.search = this.value; render()" />
-              </div>
-              
-              <div class="grid md:grid-cols-5 gap-4">
-                <select class="px-3 py-2 border rounded" onchange="state.filters.provider = this.value; render()">
-                  <option value="all">All Providers</option>
-                  ${data.providers.map(p => `<option>${p}</option>`).join('')}
-                </select>
-                <select class="px-3 py-2 border rounded" onchange="state.filters.qualification = this.value; render()">
-                  <option value="all">All Types</option>
-                  ${data.types.map(t => `<option>${t}</option>`).join('')}
-                </select>
-                <select class="px-3 py-2 border rounded" onchange="state.filters.level = this.value; render()">
-                  <option value="all">All Levels</option>
-                  ${data.levels.map(l => `<option>${l}</option>`).join('')}
-                </select>
-                <select class="px-3 py-2 border rounded" onchange="state.filters.sector = this.value; render()">
-                  <option value="all">All Sectors</option>
-                  ${data.sectors.map(s => `<option>${s}</option>`).join('')}
-                </select>
-                <select class="px-3 py-2 border rounded" onchange="state.filters.verificationStatus = this.value; render()">
-                  <option value="all">All Status</option>
-                  <option value="verified">✓ Verified</option>
-                  <option value="pending">⏳ Pending</option>
-                  <option value="unverified">⚠ Unverified</option>
-                </select>
-              </div>
-            </div>
-            
-            <div class="bg-white rounded-lg shadow p-6">
-              ${filtered.length === 0 ? `<p class="text-center py-12 text-gray-500">No qualifications found</p>` : `
-                <p class="mb-4 text-sm text-gray-600">Showing ${filtered.length} qualification${filtered.length !== 1 ? 's' : ''}</p>
-                <div class="space-y-4">
-                  ${filtered.map(q => {
-                    const b = badge(q.verificationStatus || 'unverified');
-                    return `
-                      <div class="border rounded-lg p-5">
-                        <div class="flex justify-between mb-2">
-                          <h3 class="text-lg font-semibold text-teal-700">${q.title}</h3>
-                          <span class="px-3 py-1 text-xs font-semibold rounded border ${b.color}">${b.icon} ${b.label}</span>
-                        </div>
-                        <div class="text-sm text-gray-600 space-y-1">
-                          <p><strong>Provider:</strong> ${q.provider}</p>
-                          <p><strong>Type:</strong> ${q.type} | <strong>Level:</strong> ${q.level} | <strong>Sector:</strong> ${q.sector}</p>
-                          ${q.description ? `<p class="mt-2">${q.description}</p>` : ''}
-                        </div>
-                      </div>
-                    `;
-                  }).join('')}
-                </div>
-              `}
-            </div>
-          </div>
-        `;
+        app.innerHTML = `<div class="bg-yellow-50 border-b-2 border-yellow-400 py-3 px-4"><div class="max-w-7xl mx-auto"><p class="text-sm font-semibold text-yellow-900">⚠️ DISCLAIMER: Verify with GNAB</p></div></div><header class="bg-white shadow-sm"><div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center"><div class="flex items-center gap-3">${state.logoUrl?`<img src="${state.logoUrl}" alt="Logo" class="w-12 h-12 object-contain rounded" onerror="this.style.display='none'" />`:`<div class="w-12 h-12 bg-blue-600 rounded flex items-center justify-center text-2xl">📚</div>`}<div><div class="text-xl font-bold">${state.orgName}</div><div class="text-xs text-gray-600">${state.orgTagline}</div></div></div><div>${state.isAdmin?`<button onclick="state.showBackend=true;render()" class="px-4 py-2 bg-gray-600 text-white rounded mr-2">Admin</button><button onclick="state.isAdmin=false;render()" class="px-4 py-2 bg-red-500 text-white rounded">Logout</button>`:`<button onclick="state.showLogin=true;render()" class="px-4 py-2 bg-orange-500 text-white rounded">Admin Login</button>`}</div></div></header><div class="bg-gradient-to-r from-teal-700 to-teal-500 text-white py-16 px-4"><div class="max-w-7xl mx-auto"><h1 class="text-5xl font-bold mb-2">GNQCF</h1><p class="text-xl">Grenada National Qualifications Framework Register</p></div></div><div class="max-w-7xl mx-auto px-4 py-8"><div class="bg-white rounded-lg shadow p-6 mb-6">${state.qualifications.length===0?`<div class="bg-blue-50 border border-blue-200 rounded p-4 mb-4"><h3 class="font-bold text-blue-900 mb-2">👋 Welcome!</h3><p class="text-blue-800 mb-3">No data found.</p>${state.isAdmin?`<button onclick="loadDemo()" class="px-6 py-2 bg-blue-600 text-white rounded">Load Demo</button>`:''}</div>`:''}<div class="mb-4"><input type="text" placeholder="Search..." class="w-full px-4 py-2 border rounded" onkeyup="state.search=this.value;render()" /></div><div class="grid md:grid-cols-5 gap-4"><select class="px-3 py-2 border rounded" onchange="state.filters.provider=this.value;render()"><option value="all">All Providers</option>${allProviders.map(p=>`<option>${p}</option>`).join('')}</select><select class="px-3 py-2 border rounded" onchange="state.filters.qualification=this.value;render()"><option value="all">All Types</option>${data.types.map(t=>`<option>${t}</option>`).join('')}</select><select class="px-3 py-2 border rounded" onchange="state.filters.level=this.value;render()"><option value="all">All Levels</option>${data.levels.map(l=>`<option>${l}</option>`).join('')}</select><select class="px-3 py-2 border rounded" onchange="state.filters.sector=this.value;render()"><option value="all">All Sectors</option>${data.sectors.map(s=>`<option>${s}</option>`).join('')}</select><select class="px-3 py-2 border rounded" onchange="state.filters.verificationStatus=this.value;render()"><option value="all">All Status</option><option value="verified">✓ Verified</option><option value="pending">⏳ Pending</option><option value="unverified">⚠ Unverified</option></select></div></div><div class="bg-white rounded-lg shadow p-6">${filtered.length===0?`<p class="text-center py-12 text-gray-500">No qualifications found</p>`:`<p class="mb-4 text-sm text-gray-600">Showing ${filtered.length} qualification${filtered.length!==1?'s':''}</p><div class="space-y-4">${filtered.map(q=>{const b=badge(q.verificationStatus||'unverified');return`<div class="border rounded-lg p-5"><div class="flex justify-between mb-2"><h3 class="text-lg font-semibold text-teal-700">${q.title}</h3><span class="px-3 py-1 text-xs font-semibold rounded border ${b.c}">${b.i} ${b.l}</span></div><div class="text-sm text-gray-600 space-y-1"><p><strong>Provider:</strong> ${q.provider}</p><p><strong>Type:</strong> ${q.type} | <strong>Level:</strong> ${q.level} | <strong>Sector:</strong> ${q.sector}</p>${q.description?`<p class="mt-2">${q.description}</p>`:''}</div></div>`;}).join('')}</div>`}</div></div>`;
       }
       
-      if (state.showLogin) {
-        app.innerHTML += `
-          <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div class="bg-white rounded-lg p-6 w-96">
-              <h2 class="text-2xl font-bold mb-4">Admin Login</h2>
-              <input type="password" id="pwInput" placeholder="Password" class="w-full px-4 py-2 border rounded mb-4" onkeypress="if(event.key==='Enter') login()" />
-              <div class="flex gap-3">
-                <button onclick="login()" class="flex-1 px-4 py-2 bg-teal-600 text-white rounded">Login</button>
-                <button onclick="state.showLogin = false; render()" class="flex-1 px-4 py-2 border rounded">Cancel</button>
-              </div>
-            </div>
-          </div>
-        `;
-      }
+      if (state.showLogin) app.innerHTML += `<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"><div class="bg-white rounded-lg p-6 w-96"><h2 class="text-2xl font-bold mb-4">Admin Login</h2><input type="password" id="pwInput" placeholder="Password" class="w-full px-4 py-2 border rounded mb-4" onkeypress="if(event.key==='Enter') login()" /><div class="flex gap-3"><button onclick="login()" class="flex-1 px-4 py-2 bg-teal-600 text-white rounded">Login</button><button onclick="state.showLogin=false;render()" class="flex-1 px-4 py-2 border rounded">Cancel</button></div></div></div>`;
       
-      if (state.showAddModal) {
-        app.innerHTML += `
-          <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-            <div class="bg-white rounded-lg p-6 w-full max-w-2xl">
-              <h2 class="text-2xl font-bold mb-4">${state.editingQual ? 'Edit' : 'Add'} Qualification</h2>
-              <div class="space-y-4">
-                <input type="text" placeholder="Title *" class="w-full px-3 py-2 border rounded" value="${state.formData.title || ''}" onchange="state.formData.title = this.value" />
-                <select class="w-full px-3 py-2 border rounded" onchange="state.formData.provider = this.value">
-                  <option value="">Select Provider *</option>
-                  ${data.providers.map(p => `<option ${state.formData.provider === p ? 'selected' : ''}>${p}</option>`).join('')}
-                </select>
-                <div class="grid grid-cols-2 gap-4">
-                  <select class="w-full px-3 py-2 border rounded" onchange="state.formData.type = this.value">
-                    <option value="">Type</option>
-                    ${data.types.map(t => `<option ${state.formData.type === t ? 'selected' : ''}>${t}</option>`).join('')}
-                  </select>
-                  <select class="w-full px-3 py-2 border rounded" onchange="state.formData.level = this.value">
-                    <option value="">Level</option>
-                    ${data.levels.map(l => `<option ${state.formData.level === l ? 'selected' : ''}>${l}</option>`).join('')}
-                  </select>
-                </div>
-                <select class="w-full px-3 py-2 border rounded" onchange="state.formData.sector = this.value">
-                  <option value="">Sector</option>
-                  ${data.sectors.map(s => `<option ${state.formData.sector === s ? 'selected' : ''}>${s}</option>`).join('')}
-                </select>
-                <textarea placeholder="Description" class="w-full px-3 py-2 border rounded" rows="3" onchange="state.formData.description = this.value">${state.formData.description || ''}</textarea>
-              </div>
-              <div class="flex gap-3 mt-6">
-                <button onclick="save()" class="flex-1 px-4 py-2 bg-teal-600 text-white rounded">Save</button>
-                <button onclick="state.showAddModal = false; render()" class="flex-1 px-4 py-2 border rounded">Cancel</button>
-              </div>
-            </div>
-          </div>
-        `;
-      }
+      if (state.showAddModal) app.innerHTML += `<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto"><div class="bg-white rounded-lg p-6 w-full max-w-2xl my-8"><h2 class="text-2xl font-bold mb-4">${state.editingQual?'Edit':'Add'} Qualification</h2><div class="space-y-4"><input type="text" placeholder="Title *" class="w-full px-3 py-2 border rounded" value="${state.formData.title||''}" onchange="state.formData.title=this.value" /><select class="w-full px-3 py-2 border rounded" onchange="state.formData.provider=this.value"><option value="">Select Provider *</option>${allProviders.map(p=>`<option ${state.formData.provider===p?'selected':''}>${p}</option>`).join('')}</select><div class="grid grid-cols-2 gap-4"><select class="w-full px-3 py-2 border rounded" onchange="state.formData.type=this.value"><option value="">Type</option>${data.types.map(t=>`<option ${state.formData.type===t?'selected':''}>${t}</option>`).join('')}</select><select class="w-full px-3 py-2 border rounded" onchange="state.formData.level=this.value"><option value="">Level</option>${data.levels.map(l=>`<option ${state.formData.level===l?'selected':''}>${l}</option>`).join('')}</select></div><select class="w-full px-3 py-2 border rounded" onchange="state.formData.sector=this.value"><option value="">Sector</option>${data.sectors.map(s=>`<option ${state.formData.sector===s?'selected':''}>${s}</option>`).join('')}</select><textarea placeholder="Description" class="w-full px-3 py-2 border rounded" rows="3" onchange="state.formData.description=this.value">${state.formData.description||''}</textarea></div><div class="flex gap-3 mt-6"><button onclick="save()" class="flex-1 px-4 py-2 bg-teal-600 text-white rounded">Save</button><button onclick="state.showAddModal=false;render()" class="flex-1 px-4 py-2 border rounded">Cancel</button></div></div></div>`;
+
+      if (state.showProviderModal) app.innerHTML += `<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto"><div class="bg-white rounded-lg p-6 w-full max-w-2xl my-8"><h2 class="text-2xl font-bold mb-4">Manage Providers</h2><div class="mb-6"><h3 class="font-semibold mb-3">Add New Provider</h3><div class="flex gap-3"><input type="text" id="newProviderInput" placeholder="Provider name" class="flex-1 px-4 py-2 border rounded" onkeypress="if(event.key==='Enter') addProvider()" /><button onclick="addProvider()" class="px-6 py-2 bg-teal-600 text-white rounded">Add</button></div></div><div class="mb-6"><h3 class="font-semibold mb-3">Default Providers</h3><div class="space-y-2 max-h-40 overflow-y-auto">${data.defaultProviders.map(p=>`<div class="flex items-center justify-between p-3 bg-gray-50 rounded"><span class="text-sm">${p}</span><span class="text-xs text-gray-500 italic">Default</span></div>`).join('')}</div></div>${state.customProviders.length>0?`<div class="mb-6"><h3 class="font-semibold mb-3">Custom Providers</h3><div class="space-y-2 max-h-60 overflow-y-auto">${state.customProviders.map(p=>`<div class="flex items-center justify-between p-3 bg-blue-50 rounded"><span class="text-sm">${p}</span><button onclick="deleteProvider('${p.replace(/'/g,"\\'")}')}" class="text-red-600 hover:text-red-800">🗑️</button></div>`).join('')}</div></div>`:''}<div class="flex justify-end"><button onclick="state.showProviderModal=false;render()" class="px-6 py-2 border rounded">Close</button></div></div></div>`;
       
-      if (state.showSettings) {
-        app.innerHTML += `
-          <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div class="bg-white rounded-lg p-6 w-96">
-              <h2 class="text-2xl font-bold mb-4">Settings</h2>
-              <p class="text-sm mb-3">Current password: <code class="bg-gray-100 px-2 py-1 rounded">${state.password}</code></p>
-              <input type="password" id="newPw" placeholder="New password (min 6 chars)" class="w-full px-4 py-2 border rounded mb-3" />
-              <input type="password" id="confirmPw" placeholder="Confirm password" class="w-full px-4 py-2 border rounded mb-4" />
-              <div class="flex gap-3">
-                <button onclick="
-                  const n = document.getElementById('newPw').value;
-                  const c = document.getElementById('confirmPw').value;
-                  if (n.length < 6) { notify('Min 6 characters'); return; }
-                  if (n !== c) { notify('Passwords do not match'); return; }
-                  state.password = n;
-                  storage.set('admin-password', n);
-                  state.showSettings = false;
-                  notify('Password updated!');
-                  render();
-                " class="flex-1 px-4 py-2 bg-teal-600 text-white rounded">Update</button>
-                <button onclick="state.showSettings = false; render()" class="flex-1 px-4 py-2 border rounded">Close</button>
-              </div>
-            </div>
-          </div>
-        `;
-      }
+      if (state.showSettings) app.innerHTML += `<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto"><div class="bg-white rounded-lg p-6 w-full max-w-2xl my-8"><h2 class="text-2xl font-bold mb-6">⚙️ Settings</h2><div class="mb-6 pb-6 border-b"><h3 class="text-lg font-semibold mb-3">Change Password</h3><p class="text-sm mb-3">Current: <code class="bg-gray-100 px-2 py-1 rounded">${state.password}</code></p><input type="password" id="newPw" placeholder="New password (min 6 chars)" class="w-full px-4 py-2 border rounded mb-3" /><input type="password" id="confirmPw" placeholder="Confirm password" class="w-full px-4 py-2 border rounded mb-3" /><button onclick="const n=document.getElementById('newPw').value;const c=document.getElementById('confirmPw').value;if(n.length<6){notify('Min 6 chars');return;}if(n!==c){notify('No match');return;}state.password=n;storage.set('admin-password',n);notify('Password updated!');render();" class="px-4 py-2 bg-teal-600 text-white rounded">Update Password</button></div><div class="mb-6"><h3 class="text-lg font-semibold mb-3">🎨 Branding</h3><div class="mb-4"><label class="block text-sm font-medium mb-2">Organization Name</label><input type="text" id="orgNameInput" value="${state.orgName}" class="w-full px-4 py-2 border rounded" /></div><div class="mb-4"><label class="block text-sm font-medium mb-2">Tagline</label><input type="text" id="orgTaglineInput" value="${state.orgTagline}" class="w-full px-4 py-2 border rounded" /></div><div class="mb-4 border-t pt-4"><label class="block text-sm font-medium mb-2">Logo</label><div class="mb-3"><label class="block text-xs text-gray-600 mb-2">Upload File (max 500KB)</label><input type="file" accept="image/*" onchange="handleLogoUpload(event)" class="w-full px-4 py-2 border rounded" /></div><div class="mb-3"><label class="block text-xs text-gray-600 mb-2">Or Use URL</label><input type="url" id="logoUrlInput" value="${state.logoUrl}" placeholder="https://example.com/logo.png" class="w-full px-4 py-2 border rounded" /></div>${state.logoUrl?`<div class="mb-3 p-4 bg-gray-50 rounded"><p class="text-sm font-medium mb-2">Preview:</p><img src="${state.logoUrl}" alt="Logo" class="w-16 h-16 object-contain" /></div>`:''}</div><div class="flex gap-3"><button onclick="saveBranding()" class="px-4 py-2 bg-blue-600 text-white rounded">Save Branding</button>${state.logoUrl?`<button onclick="removeLogo()" class="px-4 py-2 bg-red-600 text-white rounded">Remove Logo</button>`:''}</div></div><div class="flex justify-end"><button onclick="state.showSettings=false;render()" class="px-6 py-2 border rounded">Close</button></div></div></div>`;
     }
 
     render();
